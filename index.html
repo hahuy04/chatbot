@@ -104,121 +104,61 @@
       </div>
     </div>
 
-    <script>
-      const OPENROUTER_API_KEY = "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"; // <-- thay bằng key của bạn
-      const SITE_URL = window.location.origin; // <-- thay đúng URL bạn chạy & add vào OpenRouter Allowed Sites
+<script>
+  const OPENROUTER_API_KEY = "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"; // DÙNG KEY MỚI (key cũ đã lộ thì revoke)
 
-      const chatMessages = document.getElementById("chatMessages");
-      const messageInput  = document.getElementById("messageInput");
-      const sendButton    = document.getElementById("sendButton");
-      let isLoading = false;
+  async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message || isLoading) return;
 
-      async function sendMessage() {
-        const message = messageInput.value.trim();
-        if (!message || isLoading) return;
+    addMessage(message, "user");
+    messageInput.value = "";
+    isLoading = true;
+    sendButton.disabled = true;
+    const loadingEl = addLoadingMessage();
 
-        addMessage(message, "user");
-        messageInput.value = "";
-
-        isLoading = true;
-        sendButton.disabled = true;
-        const loadingEl = addLoadingMessage();
-
-        try {
-          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-              "HTTP-Referer": SITE_URL,           // để OpenRouter xếp hạng & kiểm tra origin
-              "X-Title": "Hy Tit AI Chatbot",     // tên site hiển thị trên openrouter.ai
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
-              messages: [{ role: "user", content: message }]
-            })
-          });
-
-          if (!response.ok) {
-            const errText = await response.text();
-            console.error("OpenRouter error:", response.status, errText);
-            throw new Error(`OpenRouter ${response.status}: ${errText}`);
-          }
-
-          const data = await response.json();
-          loadingEl.remove();
-
-          const botMessage =
-            data?.choices?.[0]?.message?.content ??
-            "Xin lỗi, tôi không thể trả lời câu hỏi này.";
-          addMessage(botMessage, "bot");
-        } catch (err) {
-          console.error(err);
-          loadingEl.remove();
-          addMessage(
-            "⚠️ Lỗi kết nối OpenRouter. Kiểm tra: (1) Allowed Sites đã thêm đúng origin, (2) không mở file:// mà chạy http://, (3) API key & quota/model.",
-            "bot"
-          );
-        } finally {
-          isLoading = false;
-          sendButton.disabled = false;
-          messageInput.focus();
-        }
-      }
-
-      function addMessage(content, sender) {
-        const messageDiv = document.createElement("div");
-        messageDiv.className = `message ${sender}`;
-
-        const avatar = document.createElement("div");
-        avatar.className = "message-avatar";
-        avatar.textContent = sender === "user" ? "👤" : "🤖";
-
-        const messageContent = document.createElement("div");
-        messageContent.className = "message-content";
-        messageContent.textContent = content;
-
-        messageDiv.appendChild(avatar);
-        messageDiv.appendChild(messageContent);
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-        return messageDiv;
-      }
-
-      function addLoadingMessage() {
-        const messageDiv = document.createElement("div");
-        messageDiv.className = "message bot";
-
-        const avatar = document.createElement("div");
-        avatar.className = "message-avatar";
-        avatar.textContent = "🤖";
-
-        const loadingDiv = document.createElement("div");
-        loadingDiv.className = "message-content";
-        loadingDiv.innerHTML = `
-          <div class="loading">
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
-          </div>
-        `;
-
-        messageDiv.appendChild(avatar);
-        messageDiv.appendChild(loadingDiv);
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        return messageDiv;
-      }
-
-      sendButton.addEventListener("click", sendMessage);
-      messageInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          sendMessage();
-        }
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        // mode: "cors", // mặc định là cors
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          // Nếu model free bị limit, tạm dùng "openrouter/auto" để test
+          model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          messages: [{ role: "user", content: message }]
+        })
       });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("OpenRouter error:", res.status, text);
+        throw new Error(`OpenRouter ${res.status}: ${text}`);
+      }
+
+      const data = await res.json();
+      loadingEl.remove();
+
+      const botMessage = data?.choices?.[0]?.message?.content ??
+        "Xin lỗi, tôi không thể trả lời câu hỏi này.";
+      addMessage(botMessage, "bot");
+    } catch (err) {
+      console.error(err);
+      loadingEl.remove();
+      addMessage(
+        "⚠️ Lỗi kết nối. Kiểm tra: (1) OpenRouter Allowed Sites đã thêm https://hahuy04.github.io, " +
+        "(2) deploy chạy qua https/không phải file://, (3) API key mới & model không bị limit.",
+        "bot"
+      );
+    } finally {
+      isLoading = false;
+      sendButton.disabled = false;
       messageInput.focus();
-    </script>
+    }
+  }
+</script>
+
   </body>
 </html>
